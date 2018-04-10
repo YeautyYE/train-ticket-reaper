@@ -22,15 +22,11 @@
 
 ## 快速启动
 
-1. 打开 <kbd>http://www.12306.com</kbd> 填好 出发城市、目的城市、日期、是否只查看高铁，然后点击搜索
-![](https://i.imgur.com/5r9YUE4.jpg)
-2. 将上一步跳转页面的url复制下来，填到下一步中的train-search-url中
-![](https://i.imgur.com/TuJ3W6F.png)
-3. 导入项目并在配置文件中填入信息
-![](https://i.imgur.com/SIeVRJc.png)
-4. 启动项目
+1. 导入项目并在配置文件中填入信息
+![](https://i.imgur.com/grYq6ek.png)
+2. 启动项目
 ![](https://i.imgur.com/qQqTDSd.png)
-5. 佛性的等待，并在抢票成功后，登陆12306进行付款
+3. 佛性的等待，并在抢票成功后，登陆12306进行付款
 
 ## 通知方式
 

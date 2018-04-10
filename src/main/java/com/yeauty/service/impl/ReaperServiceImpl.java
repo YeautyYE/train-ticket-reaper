@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.yeauty.service.LoginService;
 import com.yeauty.service.OrderService;
 import com.yeauty.service.ReaperService;
+import com.yeauty.service.StationService;
 import com.yeauty.util.DingRobotUtils;
 import com.yeauty.util.HttpClientUtils;
 import com.yeauty.util.JsonUtils;
@@ -36,8 +37,14 @@ public class ReaperServiceImpl implements ReaperService {
 
     @Value("${webhook-token}")
     String webhookToken;
-    @Value("${train-search-url}")
-    String trainSearchUrl;
+    @Value("${depart-city}")
+    String departCity;
+    @Value("${destination-city}")
+    String destinationCity;
+    @Value("${just-gd}")
+    String justGD;
+    @Value("${dept-date}")
+    String deptDate;
     @Value("${seat-name}")
     String seatName;
     @Value("${username}")
@@ -57,12 +64,14 @@ public class ReaperServiceImpl implements ReaperService {
     @Value("${time-range:null}")
     String timeRange;
 
-    String trainInfoUrl = null;
+    String trainInfoUrl;
 
     @Autowired
     LoginService loginService;
     @Autowired
     OrderService orderService;
+    @Autowired
+    StationService stationService;
 
 
     @Override
@@ -82,15 +91,11 @@ public class ReaperServiceImpl implements ReaperService {
         //从火车票查询页的url转换为trainInfo接口的url
 
         if (trainInfoUrl == null) {
+            String departCityCode = stationService.findCodeByCityName(departCity);
+            String destinationCityCode = stationService.findCodeByCityName(destinationCity);
             try {
-                //火车票查询页url 为:http://www.12306.com/#/train/search/SZQ/SHH/2018-04-08/false
-                String[] split = trainSearchUrl.trim().split("/train/search/")[1].split("/");
                 //trainInfo接口的url 为:http://api.12306.com/v1/train/trainInfos?arrStationCode=SHH&deptDate=2018-04-08&deptStationCode=SZQ&findGD=false
-                String arrStationCode = split[1];
-                String deptDate = split[2];
-                String deptStationCode = split[0];
-                String findGD = split.length == 4 ? split[3] : "false";
-                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + arrStationCode + "&deptDate=" + deptDate + "&deptStationCode=" + deptStationCode + "&findGD=" + findGD;
+                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + destinationCityCode + "&deptDate=" + deptDate + "&deptStationCode=" + departCityCode + "&findGD=" + justGD.toLowerCase();
 
             } catch (Exception e) {
                 logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确", e);
@@ -106,28 +111,28 @@ public class ReaperServiceImpl implements ReaperService {
         String json = HttpClientUtils.doGet(trainInfoUrl, null, headers);
 
         if (StringUtils.isEmpty(json)) {
-            DingRobotUtils.send(webhookToken,"返回车次信息json数据为空，请看是否被封ip,url:"+trainInfoUrl,true);
+            DingRobotUtils.send(webhookToken, "返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl, true);
             logger.error("返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl);
             return;
         }
 
         JsonNode jsonNode = JsonUtils.jsonToJsonNode(json);
         if (jsonNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:"+trainInfoUrl+" ,json:"+json, true);
+            DingRobotUtils.send(webhookToken, "解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
             logger.error("解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
             return;
         }
 
         JsonNode dataNode = jsonNode.get("data");
         if (dataNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:"+trainInfoUrl+" ,json:"+json, true);
+            DingRobotUtils.send(webhookToken, "解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
             logger.error("解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
             return;
         }
 
         JsonNode trainInfosNode = dataNode.get("trainInfos");
         if (trainInfosNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:"+trainInfoUrl+" ,json:"+json, true);
+            DingRobotUtils.send(webhookToken, "解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
             logger.error("解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
             return;
         }
@@ -135,13 +140,13 @@ public class ReaperServiceImpl implements ReaperService {
         for (JsonNode infoNode : trainInfosNode) {
             JsonNode trainCodeNode = infoNode.get("trainCode");
             if (trainCodeNode == null) {
-                DingRobotUtils.send(webhookToken, "解析车次trainCode为空，请注意,info:"+infoNode.toString(), true);
+                DingRobotUtils.send(webhookToken, "解析车次trainCode为空，请注意,info:" + infoNode.toString(), true);
                 logger.error("解析车次trainCode为空，请注意,info:" + infoNode.toString());
                 continue;
             }
             JsonNode deptTimeNode = infoNode.get("deptTime");
             if (deptTimeNode == null) {
-                DingRobotUtils.send(webhookToken, "解析车次deptTime为空，请注意,info:"+deptTimeNode.toString(), true);
+                DingRobotUtils.send(webhookToken, "解析车次deptTime为空，请注意,info:" + deptTimeNode.toString(), true);
                 logger.error("解析车次deptTime为空，请注意,info:" + deptTimeNode.toString());
                 continue;
             }
@@ -153,7 +158,7 @@ public class ReaperServiceImpl implements ReaperService {
 
             JsonNode seatList = infoNode.get("seatList");
             if (seatList == null) {
-                DingRobotUtils.send(webhookToken, "解析车次:"+trainCodeNode.asText()+" 出发时间:"+deptTimeNode.asText()+" 的座位列表有误，info:"+deptTimeNode.toString(), true);
+                DingRobotUtils.send(webhookToken, "解析车次:" + trainCodeNode.asText() + " 出发时间:" + deptTimeNode.asText() + " 的座位列表有误，info:" + deptTimeNode.toString(), true);
                 logger.error("解析车次:" + trainCodeNode.asText() + " 出发时间:" + deptTimeNode.asText() + " 的座位列表有误，info:" + deptTimeNode.toString());
                 continue;
             }
