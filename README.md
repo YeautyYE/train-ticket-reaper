@@ -23,8 +23,10 @@
 ## 快速启动
 
 1. 导入项目并在配置文件中填入信息
+
 ![](https://i.imgur.com/grYq6ek.png)
 2. 启动项目
+
 ![](https://i.imgur.com/qQqTDSd.png)
 3. 佛性的等待，并在抢票成功后，登陆12306进行付款
 
