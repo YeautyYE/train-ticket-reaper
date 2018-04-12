@@ -43,7 +43,7 @@ mvn clean package -DskipTests
 ```
 java -jar train-ticket-reaper --depart-city=*** --destination-city=*** --just-gd=true=*** --dept-date=*** --seat-name=*** --username=*** --password=*** --passenger-name=*** --passport-no=*** --sex=* --contact-mobile=*** --contact-name=*** --timeRange=*** --webhook-token=*** --mode=*
 ```
-- config说明
+- 参数说明
 ```
 ######### [车次信息] #########
 #出发城市 如 深圳
