@@ -50,7 +50,7 @@ java -jar train-ticket-reaper --depart-city=*** --destination-city=*** --just-gd
 depart-city =
 #目的城市 如 上海
 destination-city =
-#是否只看高铁/动车 (默认true)
+#是否只看高铁/动车 (非必填，默认值 true)
 just-gd =
 #车次日期 如 2018-04-09
 dept-date =
@@ -79,11 +79,11 @@ contact-mobile =
 #联系人姓名 如 张三
 contact-name =
 
-######### [钉钉通知] #########
+######### [钉钉通知] ######### （非必填）
 #钉钉自定义机器人的webhookToken，不使用钉钉机器人进行通知则不填 如 https://oapi.dingtalk.com/robot/send?access_token=4a637ce2b7ce6c0be48fc3388265345ee1cd4ea036ce705112ed618924f987aa
 webhook-token =
 
-######### [抢票模式] #########
+######### [抢票模式] ######### （非必填，不填使用默认值）
 #1 极速模式  2 丧心病狂模式  3 为了抢票不要命模式  (默认1)
 mode =
 ```
