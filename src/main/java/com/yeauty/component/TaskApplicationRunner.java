@@ -36,7 +36,7 @@ public class TaskApplicationRunner implements ApplicationRunner {
             case "1":
                 ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
                 threadPoolTaskScheduler.initialize();
-                CronTrigger trigger = new CronTrigger("* * * * * ?");
+                CronTrigger trigger = new CronTrigger("* * 6-23 * * ?");
                 threadPoolTaskScheduler.schedule(new Runnable() {
                     @Override
                     public void run() {
