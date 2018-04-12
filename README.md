@@ -22,14 +22,71 @@
 
 ## 快速启动
 
-1. 导入项目并在配置文件中填入信息
-
-![](https://i.imgur.com/grYq6ek.png)
-2. 启动项目
-
+1. 源代码启动
+- 导入项目并在配置文件中填入信息
+![](https://i.imgur.com/NTcfZkM.png)
+- 启动项目
 ![](https://i.imgur.com/qQqTDSd.png)
+- 佛性的等待，并在抢票成功后，登陆12306进行付款
 
-3. 佛性的等待，并在抢票成功后，登陆12306进行付款
+---
+
+2. jar包启动
+- 进入源代码根目录
+- 使用maven进行打包
+```
+mvn clean package -DskipTests
+```
+- 运行命令
+```
+java -jar train-ticket-reaper --depart-city=*** --destination-city=*** --just-gd=true=*** --dept-date=*** --seat-name=*** --username=*** --password=*** --passenger-name=*** --passport-no=*** --sex=* --contact-mobile=*** --contact-name=*** --timeRange=*** --webhook-token=*** --mode=*
+```
+- config说明
+```
+######### [车次信息] #########
+#出发城市 如 深圳
+depart-city=
+#目的城市 如 上海
+destination-city=
+#是否只看高铁/动车 (默认true)
+just-gd=
+#车次日期 如 2018-04-09
+dept-date=
+#时间范围 （火车发车时间范围限制，不填默认不限制） 如：10:30-14:50 注意冒号使用英文的:
+timeRange=
+#座位名称 如：二等座，一等座，无座
+seat-name=
+
+######### [登陆信息] #########
+#12306登陆用户名
+username=
+#12306登陆用户密码
+password=
+
+######### [乘客信息] #########
+#乘客姓名
+passenger-name=
+#乘客身份证号码
+passport-no=
+#乘客性别 男M 女F
+sex=M
+
+######### [联系人信息] #########
+#联系人号码 如 13888888888
+contact-mobile=
+#联系人姓名 如 张三
+contact-name=
+
+######### [钉钉通知] #########
+#钉钉自定义机器人的webhookToken，不使用钉钉机器人进行通知则不填 如 https://oapi.dingtalk.com/robot/send?access_token=4a637ce2b7ce6c0be48fc3388265345ee1cd4ea036ce705112ed618924f987aa
+webhook-token=
+
+######### [抢票模式] #########
+#1 极速模式  2 丧心病狂模式  3 为了抢票不要命模式  (默认1)
+mode=
+```
+- 佛性的等待，并在抢票成功后，登陆12306进行付款
+
 
 ## 通知方式
 
@@ -44,14 +101,15 @@
 - 所以不用担心抢票成功后又被超时取消
 
 ## 抢票模式
-1.极速模式 （只需按照快速启动，即时极速模式。默认每秒刷一次）
+1.极速模式 
+- 只需按照快速启动，即时极速模式。
+- 默认每秒检测一次。
+- 遇到有位置，占座时直接 while(ture) 进行占座请求。普通浏览器5秒一次占座
 2.丧心病狂模式
-- 将com.yeauty.component.TimerComponent中的@Scheduled(cron = "* * * * * ?")注掉
-![](https://i.imgur.com/LuDJA4Y.png)
-- 将com.yeauty.TrainTicketReaperApplication中丧心病狂模式代码解开（默认是注掉）
-![](https://i.imgur.com/yLVpAdO.png)
+- mode设为2
+- 每秒平均10次检测
+- 占座也是 while(ture)
 3.为了抢票不要命模式
-- 将com.yeauty.component.TimerComponent中的@Scheduled(cron = "* * * * * ?")注掉
-![](https://i.imgur.com/LuDJA4Y.png)
-- 将com.yeauty.TrainTicketReaperApplication中为了抢票不要命模式代码解开（默认是注掉）
-![](https://i.imgur.com/7kO1DHh.png)
+- mode设为3
+- 在 丧心病狂 模式基础上使用100条线程运行
+- 占座也是 while(ture)

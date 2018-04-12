@@ -33,7 +33,7 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class HttpClientUtils {
+public abstract class HttpClientUtils {
 
 
     public final static String[] mobileUserAgentArray = new String[]{
@@ -60,40 +60,37 @@ public class HttpClientUtils {
 
 
     public static String doGet(String url, Map<String, String> param, Map<String, String> headers, String charset, String proxyHost, Integer proxyPort) {
-
-        HttpHost httpHost = null;
-        if (proxyHost != null && proxyPort != null) {
-            httpHost = new HttpHost(proxyHost, proxyPort);
-        }
-
         // 创建Http请求配置参数
         RequestConfig.Builder requestBuilder = RequestConfig.custom()
                 // 获取连接超时时间
-                .setConnectionRequestTimeout(20000)
+                .setConnectionRequestTimeout(2000)
                 // 请求超时时间
-                .setConnectTimeout(20000)
+                .setConnectTimeout(2000)
                 // 响应超时时间
-                .setSocketTimeout(20000)
-                .setProxy(httpHost);
+                .setSocketTimeout(2000);
+        HttpHost httpHost = null;
+        if (proxyHost != null && proxyPort != null) {
+            httpHost = new HttpHost(proxyHost, proxyPort);
+            requestBuilder.setProxy(httpHost);
+        }
+
 
         RequestConfig requestConfig = requestBuilder.build();
 
         // 创建httpClient
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
+
         httpClientBuilder
                 // 把请求相关的超时信息设置到连接客户端
-                .setDefaultRequestConfig(requestConfig);
+                .setDefaultRequestConfig(requestConfig)
+                // 把请求重试设置到连接客户端
+                .setRetryHandler(new RetryHandler());
+
         CloseableHttpClient httpClient = httpClientBuilder.build();
 
-        /*// 创建Httpclient对象
-        HttpClientBuilder build = HttpClients.custom();
-        if (proxyHost != null && proxyPort != null) {
-            build = build.setProxy(new HttpHost(proxyHost, proxyPort));
-        }
-        CloseableHttpClient httpClient = build.build();*/
-
-        String resultString = "";
+        HttpClientContext httpClientContext = HttpClientContext.create();
         CloseableHttpResponse response = null;
+        String resultString = "";
         try {
             // 创建uri
             URIBuilder builder = new URIBuilder(url);
@@ -162,12 +159,35 @@ public class HttpClientUtils {
     }
 
     public static String doPost(String url, Map<String, String> param, String json, Map<String, String> headers, String charset, String proxyHost, Integer proxyPort) {
-        // 创建Httpclient对象
-        HttpClientBuilder build = HttpClients.custom();
+        // 创建Http请求配置参数
+        RequestConfig.Builder requestBuilder = RequestConfig.custom()
+                // 获取连接超时时间
+                .setConnectionRequestTimeout(2000)
+                // 请求超时时间
+                .setConnectTimeout(2000)
+                // 响应超时时间
+                .setSocketTimeout(2000);
+        HttpHost httpHost = null;
         if (proxyHost != null && proxyPort != null) {
-            build = build.setProxy(new HttpHost(proxyHost, proxyPort));
+            httpHost = new HttpHost(proxyHost, proxyPort);
+            requestBuilder.setProxy(httpHost);
         }
-        CloseableHttpClient httpClient = build.build();
+
+
+        RequestConfig requestConfig = requestBuilder.build();
+
+        // 创建httpClient
+        HttpClientBuilder httpClientBuilder = HttpClients.custom();
+
+        httpClientBuilder
+                // 把请求相关的超时信息设置到连接客户端
+                .setDefaultRequestConfig(requestConfig)
+                // 把请求重试设置到连接客户端
+                .setRetryHandler(new RetryHandler());
+
+        CloseableHttpClient httpClient = httpClientBuilder.build();
+
+        HttpClientContext httpClientContext = HttpClientContext.create();
         CloseableHttpResponse response = null;
         String resultString = "";
         try {
@@ -181,19 +201,17 @@ public class HttpClientUtils {
             } else {
                 setFormParam(param, httpPost);
             }
-            // 执行http请求
+            // 执行请求
             response = httpClient.execute(httpPost);
-            resultString = EntityUtils.toString(response.getEntity(), charset);
+            // 判断返回状态是否为200
+            if (response.getStatusLine().getStatusCode() == 200) {
+                resultString = EntityUtils.toString(response.getEntity(), charset);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            try {
-                response.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            closeResponse(httpClient, response);
         }
-
         return resultString;
     }
 
@@ -236,53 +254,6 @@ public class HttpClientUtils {
         } else {
             return null;
         }
-    }
-
-    public static boolean checkProxy(String ip, int port, String type) {
-
-        HttpHost httpHost = new HttpHost(ip, port, type);
-
-        // 创建Http请求配置参数
-        RequestConfig.Builder builder = RequestConfig.custom()
-                // 获取连接超时时间
-                .setConnectionRequestTimeout(20000)
-                // 请求超时时间
-                .setConnectTimeout(20000)
-                // 响应超时时间
-                .setSocketTimeout(20000)
-                .setProxy(httpHost);
-
-        RequestConfig requestConfig = builder.build();
-
-        // 创建httpClient
-        HttpClientBuilder httpClientBuilder = HttpClients.custom();
-
-        httpClientBuilder
-                // 把请求相关的超时信息设置到连接客户端
-                .setDefaultRequestConfig(requestConfig)
-                // 把请求重试设置到连接客户端
-                .setRetryHandler(new RetryHandler());
-
-        CloseableHttpClient client = httpClientBuilder.build();
-
-        HttpClientContext httpClientContext = HttpClientContext.create();
-        CloseableHttpResponse response = null;
-        try {
-            HttpGet request = new HttpGet("http://www.163.com/");
-            response = client.execute(request, httpClientContext);
-
-            int statusCode = response.getStatusLine().getStatusCode();// 连接代码
-
-            if (statusCode == 200) {
-
-                return true;
-            }
-        } catch (IOException e) {
-//            e.printStackTrace();
-            return false;
-        }
-
-        return false;
     }
 
     public static List<String> cookiesByGet(String url, String userAgent, String referer, String cookie) throws IOException {

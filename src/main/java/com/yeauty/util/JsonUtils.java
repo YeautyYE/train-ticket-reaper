@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class JsonUtils {
+public abstract class JsonUtils {
 
     // 定义jackson对象
     private static final ObjectMapper MAPPER = new ObjectMapper().configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);

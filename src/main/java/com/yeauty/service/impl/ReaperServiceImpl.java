@@ -33,7 +33,7 @@ public class ReaperServiceImpl implements ReaperService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReaperServiceImpl.class);
 
-    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("HH:mm");
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("H:mm");
 
     @Value("${webhook-token}")
     String webhookToken;
