@@ -25,7 +25,7 @@
 1. IDE启动
 - 导入项目并在配置文件中填入信息
 
-![](https://i.imgur.com/NTcfZkM.png)
+![](https://i.imgur.com/wHLtCq5.png)
 - 启动项目
 
 ![](https://i.imgur.com/qQqTDSd.png)
@@ -41,15 +41,15 @@ mvn clean package -DskipTests
 ```
 - 运行命令
 ```
-java -jar train-ticket-reaper --depart-city=*** --destination-city=*** --just-gd=true=*** --dept-date=*** --seat-name=*** --username=*** --password=*** --passenger-name=*** --passport-no=*** --sex=* --contact-mobile=*** --contact-name=*** --timeRange=*** --webhook-token=*** --mode=*
+java -jar train-ticket-reaper --from-station=*** --to-station=*** --just-gd=true=*** --dept-date=*** --seat-name=*** --username=*** --password=*** --passenger-name=*** --passport-no=*** --sex=* --contact-mobile=*** --contact-name=*** --timeRange=*** --webhook-token=*** --mode=*
 ```
 - 参数说明
 ```
 ######### [车次信息] #########
-#出发城市 如 深圳
-depart-city =
-#目的城市 如 上海
-destination-city =
+#出发站 如 深圳
+from-station =
+#目的站 如 上海
+to-station =
 #是否只看高铁/动车 (非必填，默认值 true)
 just-gd =
 #车次日期 如 2018-04-09
