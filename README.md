@@ -16,7 +16,7 @@
 ## 项目介绍
 ![](https://img.shields.io/badge/build-passing-brightgreen.svg) ![](https://img.shields.io/badge/downloads-190KB-brightgreen.svg) ![](https://img.shields.io/badge/jdk-1.8-blue.svg) ![](https://img.shields.io/badge/springboot-2.0.1-blue.svg)   ![](https://img.shields.io/badge/maven-3.3.9-blue.svg)  ![](https://img.shields.io/badge/IDEA-2017.2.3-blue.svg)
 - `train-ticket-reaper` 的目标是以简单的使用方法、和高效的抢票让小伙伴们安心的抢到回家的票
-- 抢票的原理是模拟http请求调用12306API进行查询、下单、确认等（没有付款步奏，保证小伙伴钱包的安全，抢到后自行登陆12306付款即可）。
+- 抢票的原理是模拟http请求调用<kbd>12306.com</kbd>API进行查询、下单、确认等（没有付款步奏，保证小伙伴钱包的安全，抢到后自行登陆<kbd>http://12306.com/</kbd>付款即可）。
 - 没有复杂的环境配置和依赖，只需要把该填的参数填上，run一下就可以一直放着等他抢到票为止
 - 提供3种不同的抢票模式（极速模式、丧心病狂模式、为了抢票不要命模式），后两种非万不得已，不建议使用
 
@@ -29,7 +29,7 @@
 - 启动项目
 
 ![](https://i.imgur.com/qQqTDSd.png)
-- 佛性的等待，并在抢票成功后，登陆12306进行付款
+- 佛性的等待，并在抢票成功后，登陆<kbd>http://12306.com/</kbd>进行付款
 
 ---
 
@@ -60,9 +60,9 @@ timeRange =
 seat-name =
 
 ######### [登陆信息] #########
-#12306登陆用户名
+#登陆用户名
 username =
-#12306登陆用户密码
+#登陆用户密码
 password =
 
 ######### [乘客信息] #########
@@ -87,7 +87,7 @@ webhook-token =
 #1 极速模式  2 丧心病狂模式  3 为了抢票不要命模式  (默认1)
 mode =
 ```
-- 佛性的等待，并在抢票成功后，登陆12306进行付款
+- 佛性的等待，并在抢票成功后，登陆<kbd>http://12306.com/</kbd>进行付款
 
 
 ## 通知方式
@@ -99,7 +99,7 @@ mode =
 
 2.佛性通知
 - 当抢票成功后，程序会自动退出（不用担心资源浪费等问题）。
-- 当下单成功的15分钟后，12306会主动发信息到你填的 联系人号码 上（因为12306想催你给钱啊~）
+- 当下单成功的15分钟后，<kbd>12306.com</kbd>会主动发信息到你填的 联系人号码 上（因为<kbd>12306.com</kbd>想催你给钱啊~）
 - 所以不用担心抢票成功后又被超时取消
 
 ## 抢票模式
