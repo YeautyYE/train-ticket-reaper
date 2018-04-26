@@ -37,10 +37,10 @@ public class ReaperServiceImpl implements ReaperService {
 
     @Value("${webhook-token}")
     String webhookToken;
-    @Value("${depart-city}")
-    String departCity;
-    @Value("${destination-city}")
-    String destinationCity;
+    @Value("${from-station}")
+    String fromStation;
+    @Value("${to-station}")
+    String toStation;
     @Value("${just-gd}")
     String justGD;
     @Value("${dept-date}")
@@ -91,11 +91,11 @@ public class ReaperServiceImpl implements ReaperService {
         //从火车票查询页的url转换为trainInfo接口的url
 
         if (trainInfoUrl == null) {
-            String departCityCode = stationService.findCodeByCityName(departCity);
-            String destinationCityCode = stationService.findCodeByCityName(destinationCity);
+            String fromStationCode = stationService.findCodeByCityName(fromStation);
+            String toStationCode = stationService.findCodeByCityName(toStation);
             try {
                 //trainInfo接口的url 为:http://api.12306.com/v1/train/trainInfos?arrStationCode=SHH&deptDate=2018-04-08&deptStationCode=SZQ&findGD=false
-                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + destinationCityCode + "&deptDate=" + deptDate + "&deptStationCode=" + departCityCode + "&findGD=" + justGD.toLowerCase();
+                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + toStationCode + "&deptDate=" + deptDate + "&deptStationCode=" + fromStationCode + "&findGD=" + justGD.toLowerCase();
 
             } catch (Exception e) {
                 logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确", e);
