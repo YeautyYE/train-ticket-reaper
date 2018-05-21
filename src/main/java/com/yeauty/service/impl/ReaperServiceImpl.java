@@ -17,10 +17,8 @@ import org.springframework.util.StringUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Yeauty
@@ -66,6 +64,8 @@ public class ReaperServiceImpl implements ReaperService {
 
     String trainInfoUrl;
 
+    AtomicInteger counter = new AtomicInteger(1);
+
     @Autowired
     LoginService loginService;
     @Autowired
@@ -76,72 +76,242 @@ public class ReaperServiceImpl implements ReaperService {
 
     @Override
     public void monitor() {
-        Map headers = new HashMap<>();
-        headers.put("Accept", "application/json, text/plain");
-        headers.put("Accept-Encoding", "gzip, deflate");
-        headers.put("Accept-Language", "zh-CN");
-        headers.put("Connection", "keep-alive");
-        headers.put("Content-Type", "application/json");
-        headers.put("DNT", "1");
-        headers.put("Host", "api.12306.com");
-        headers.put("Origin", "http://www.12306.com");
-        headers.put("Referer", "http://www.12306.com/");
-        headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
+        try {
+            logger.info("开始进行第 " + counter.getAndIncrement() + " 次检测");
 
-        //从火车票查询页的url转换为trainInfo接口的url
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Accept", "application/json, text/plain");
+            headers.put("Accept-Encoding", "gzip, deflate");
+            headers.put("Accept-Language", "zh-CN");
+            headers.put("Connection", "keep-alive");
+            headers.put("Content-Type", "application/json");
+            headers.put("DNT", "1");
+            headers.put("Host", "api.12306.com");
+            headers.put("Origin", "http://www.12306.com");
+            headers.put("Referer", "http://www.12306.com/");
+            headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
 
-        if (trainInfoUrl == null) {
-            String fromStationCode = stationService.findCodeByCityName(fromStation);
-            String toStationCode = stationService.findCodeByCityName(toStation);
-            try {
-                //trainInfo接口的url 为:http://api.12306.com/v1/train/trainInfos?arrStationCode=SHH&deptDate=2018-04-08&deptStationCode=SZQ&findGD=false
-                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + toStationCode + "&deptDate=" + deptDate + "&deptStationCode=" + fromStationCode + "&findGD=" + justGD.toLowerCase();
-
-            } catch (Exception e) {
-                logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确", e);
+            //获取列车信息
+            JsonNode trainInfosNode = getTrainInfosNode(fromStation, toStation, deptDate, justGD, headers, webhookToken);
+            if (trainInfosNode == null) {
+                logger.error("获取列车信息失败");
                 return;
             }
+
+            //获取适合的列车信息（符合配置文件中配置的）
+            List<JsonNode> trainNodes = getApplicableTrainInfoNodes(trainInfosNode, seatName, timeRange, webhookToken);
+            if (trainNodes == null) {
+                logger.error("没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息");
+                DingRobotUtils.send(webhookToken, "没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息", true);
+                return;
+            }
+
+            for (JsonNode infoNode : trainNodes) {
+
+                JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
+                JsonNode seatNum = classSeatNode.get("seatNum");
+
+                if ("0".equals(seatNum.asText())) {
+                    continue;
+                }
+
+                //通过登陆获取accessToken
+                String accessToken = getAccessTokenByLogin(username, password, webhookToken);
+                if (StringUtils.isEmpty(accessToken)) {
+                    DingRobotUtils.send(webhookToken, "登陆失败，请检查username和password", true);
+                    logger.error("登陆失败，请检查username和password");
+                    continue;
+                }
+
+                //构建订单
+                JsonNode orderNode = buildOrder(accessToken, passengerName, passportNo, sex, contactMobile, contactName, infoNode);
+                if (orderNode == null) {
+                    continue;
+                }
+
+                //占座(会一直刷到出结果，成功则程序退出，失败则return,进行下一次)
+                occupy(accessToken, orderNode, infoNode, seatName, headers, webhookToken);
+
+            }
+        } catch (Exception e) {
+            logger.error("第 " + counter.get() + " 次检测报错", e);
+        }
+    }
+
+    @Override
+    public void noBrainPlaceOrder() {
+        try {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Accept", "application/json, text/plain");
+            headers.put("Accept-Encoding", "gzip, deflate");
+            headers.put("Accept-Language", "zh-CN");
+            headers.put("Connection", "keep-alive");
+            headers.put("Content-Type", "application/json");
+            headers.put("DNT", "1");
+            headers.put("Host", "api.12306.com");
+            headers.put("Origin", "http://www.12306.com");
+            headers.put("Referer", "http://www.12306.com/");
+            headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
+
+            //获取列车信息
+            JsonNode trainInfosNode = getTrainInfosNode(fromStation, toStation, deptDate, justGD, headers, webhookToken);
+            if (trainInfosNode == null) {
+                logger.error("获取列车信息失败");
+                return;
+            }
+
+            //获取适合的列车信息（符合配置文件中配置的）
+            List<JsonNode> trainNodes = getApplicableTrainInfoNodes(trainInfosNode, seatName, timeRange, webhookToken);
+            if (trainNodes == null) {
+                logger.error("没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息");
+                DingRobotUtils.send(webhookToken, "没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息", true);
+                return;
+            }
+
+            while (true) {
+                for (JsonNode infoNode : trainNodes) {
+
+                    JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
+                    JsonNode seatNum = classSeatNode.get("seatNum");
+
+                    //通过登陆获取accessToken
+                    String accessToken = getAccessTokenByLogin(username, password, webhookToken);
+                    if (StringUtils.isEmpty(accessToken)) {
+                        DingRobotUtils.send(webhookToken, "登陆失败，请检查username和password", true);
+                        logger.error("登陆失败，请检查username和password");
+                        continue;
+                    }
+
+                    //构建订单
+                    JsonNode orderNode = buildOrder(accessToken, passengerName, passportNo, sex, contactMobile, contactName, infoNode);
+                    if (orderNode == null) {
+                        continue;
+                    }
+                    //占座(会一直刷到出结果，成功则程序退出，失败则return,进行下一次)
+                    occupy(accessToken, orderNode, infoNode, seatName, headers, webhookToken);
+
+
+                }
+            }
+        } catch (Exception e) {
+            logger.error("无脑下单模式报错", e);
         }
 
-        if (StringUtils.isEmpty(trainInfoUrl)) {
-            logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确");
-            return;
+    }
+
+    private JsonNode buildOrder(String accessToken, String passengerName, String passportNo, String sex, String contactMobile, String contactName, JsonNode infoNode) {
+        String orderJson = orderService.buildOrder(accessToken, passengerName, passportNo, sex, contactMobile, contactName, infoNode);
+        if (StringUtils.isEmpty(orderJson)) {
+            DingRobotUtils.send(webhookToken, "构建订单失败，请检查passengerName, passportNo, sex, contactMobile, contactName。重点检查passengerName和passportNo是否对应", true);
+            logger.error("构建订单失败，请检查passengerName, passportNo, sex, contactMobile, contactName。重点检查passengerName和passportNo是否对应。或者是网络问题");
+            return null;
+        }
+        JsonNode orderNode = JsonUtils.jsonToJsonNode(orderJson);
+        JsonNode codeNode = orderNode.get("code");
+
+        //{"message":"","code":"00000","data":{"orderNo":"T201804071229380152344","orderDate":1523075378841}}
+
+        if (codeNode.asText().equals("00007")) {
+            logger.warn("存在正在占座的订单 , sleep 100 ms , continue");
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return null;
         }
 
-        String json = HttpClientUtils.doGet(trainInfoUrl, null, headers);
-
-        if (StringUtils.isEmpty(json)) {
-            DingRobotUtils.send(webhookToken, "返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl, true);
-            logger.error("返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl);
-            return;
+        if (codeNode.asText().equals("00005")) {
+            logger.warn("存在未支付订单，请先去 www.12306.com 取消订单");
+            System.exit(0);
         }
 
-        JsonNode jsonNode = JsonUtils.jsonToJsonNode(json);
-        if (jsonNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
-            logger.error("解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
-            return;
+        if (codeNode.asText().equals("00000")) {
+            return orderNode;
+        }
+        return null;
+    }
+
+    private void occupy(String accessToken, JsonNode orderNode, JsonNode infoNode, String seatName, Map<String, String> headers, String webhookToken) {
+        JsonNode trainCodeNode = infoNode.get("trainCode");
+        JsonNode deptTimeNode = infoNode.get("deptTime");
+        JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
+        JsonNode seatNum = classSeatNode.get("seatNum");
+
+        JsonNode orderDataNode = orderNode.get("data");
+        JsonNode orderNoNode = orderDataNode.get("orderNo");
+        JsonNode orderDateNode = orderDataNode.get("orderDate");
+
+        //http://api.12306.com/v1/train/order-detail/T201804071229380152344?access_token=82489e76-09fd-407c-bb26-31a660b00014
+        String occupyUrl = "http://api.12306.com/v1/train/order-detail/" + orderNoNode.asText() + "?access_token=" + accessToken;
+        while (true) {
+            String occupyJson = HttpClientUtils.doGet(occupyUrl, null, headers);
+            if (StringUtils.isEmpty(occupyJson)) {
+                DingRobotUtils.send(webhookToken, "占座时返回空，请检查是否被封，或是否超时", true);
+                logger.warn("占座时返回空，请检查是否被封，或是否超时");
+                continue;
+            }
+            JsonNode occupyJsonNode = JsonUtils.jsonToJsonNode(occupyJson);
+            if (occupyJsonNode == null) {
+                DingRobotUtils.send(webhookToken, "占座时返回数据不为json，内容:" + occupyJson, true);
+                logger.warn("占座时返回数据不为json，内容:" + occupyJson);
+                continue;
+            }
+            JsonNode occupyDataNode = occupyJsonNode.get("data");
+            JsonNode statusTextNode = occupyDataNode.get("statusText");
+            String deptStationName = infoNode.get("deptStationName") == null ? "" : infoNode.get("deptStationName").asText();
+            String arrStationName = infoNode.get("arrStationName") == null ? "" : infoNode.get("arrStationName").asText();
+
+            //如果不为占座中，则判断是什么状态  （占座中时，需要重复刷这个接口，直到拿到成功或失败的信息）
+            if (!"占座中".equals(statusTextNode.asText())) {
+                DingRobotUtils.send(webhookToken, "出发时间:" + deptDate + " " + deptTimeNode.asText() + "\r车次:" + trainCodeNode.asText() + " [" + deptStationName + " 开往 " + arrStationName + "]\r票数:" + seatNum.asText() + " [" + seatName + " ￥" + classSeatNode.get("seatPrice").asText() + "] \r状态:" + statusTextNode.asText(), false);
+                logger.info("出发时间:" + deptDate + " " + deptTimeNode.asText());
+                logger.info("车次:" + trainCodeNode.asText() + " [从 " + deptStationName + " 开往 " + arrStationName + "]");
+                logger.info("票数:" + seatNum.asText() + " [" + seatName + " ￥" + classSeatNode.get("seatPrice").asText() + "]");
+                logger.info("状态:" + statusTextNode.asText());
+                if (statusTextNode.asText().contains("占座成功")) {
+                    DingRobotUtils.send(webhookToken, "出发时间:" + deptDate + " " + deptTimeNode.asText() + "\r车次:" + trainCodeNode.asText() + " [" + deptStationName + " 开往 " + arrStationName + "]\r票数:" + seatNum.asText() + " [" + seatName + " ￥" + classSeatNode.get("seatPrice").asText() + "] \r状态:" + statusTextNode.asText() + "\r", true);
+                    System.exit(0);
+                    return;
+                }
+                //不是占座成功一般都是占座失败，跳出循环
+                break;
+            }
+
         }
 
-        JsonNode dataNode = jsonNode.get("data");
-        if (dataNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
-            logger.error("解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
-            return;
-        }
+    }
 
-        JsonNode trainInfosNode = dataNode.get("trainInfos");
-        if (trainInfosNode == null) {
-            DingRobotUtils.send(webhookToken, "解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
-            logger.error("解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
-            return;
+    private String getAccessTokenByLogin(String username, String password, String webhookToken) {
+        Map<String, String> loginInfo = loginService.login(username, password);
+        if (loginInfo == null) {
+            return null;
         }
+        String accessToken = loginInfo.get("access_token");
+        if (StringUtils.isEmpty(accessToken)) {
+            return null;
+        }
+        return accessToken;
+    }
 
+    private List<JsonNode> getApplicableTrainInfoNodes(JsonNode trainInfosNode, String seatName, String timeRange, String webhookToken) {
+        List<JsonNode> trainInfoNodes = new ArrayList<>();
         for (JsonNode infoNode : trainInfosNode) {
             JsonNode trainCodeNode = infoNode.get("trainCode");
             if (trainCodeNode == null) {
                 DingRobotUtils.send(webhookToken, "解析车次trainCode为空，请注意,info:" + infoNode.toString(), true);
                 logger.error("解析车次trainCode为空，请注意,info:" + infoNode.toString());
+                continue;
+            }
+            //当23:00到6:00时是不能买票的，缓一缓
+            JsonNode reasonNode = infoNode.get("reason");
+            if (reasonNode != null && "不在服务时间".equals(reasonNode.asText())) {
+                logger.info(trainCodeNode.asText() + "\t 不在服务期间内 （23:00到6:00时是不能买票的），sleep 100ms  ，跳过");
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 continue;
             }
             JsonNode deptTimeNode = infoNode.get("deptTime");
@@ -163,15 +333,7 @@ public class ReaperServiceImpl implements ReaperService {
                 continue;
             }
 
-            JsonNode classSeatNode = null;
-            JsonNode seatNameNode = null;
-            for (JsonNode seatNode : seatList) {
-                seatNameNode = seatNode.get("seatName");
-                if (seatNameNode != null && seatName.equals(seatNameNode.asText().trim())) {
-                    classSeatNode = seatNode;
-                    break;
-                }
-            }
+            JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
 
             if (classSeatNode == null) {
                 logger.warn("车次:" + trainCodeNode.asText() + " 出发时间:" + deptTimeNode.asText() + "无对应的座位:" + seatName);
@@ -182,62 +344,28 @@ public class ReaperServiceImpl implements ReaperService {
                 logger.warn("车次:" + trainCodeNode.asText() + " 出发时间:" + deptTimeNode.asText() + "无对应的座位号码");
                 continue;
             }
-            if ("0".equals(seatNum.asText())) {
-                continue;
-            }
 
-            Map<String, String> loginInfo = loginService.login(username, password);
-
-            String accessToken = loginInfo.get("access_token");
-            if (StringUtils.isEmpty(accessToken)) {
-                DingRobotUtils.send(webhookToken, "登陆失败，请检查username和password", true);
-                logger.error("登陆失败，请检查username和password");
-                return;
-            }
-
-            String resultJson = orderService.buildOrder(accessToken, passengerName, passportNo, sex, contactMobile, contactName, infoNode);
-            if (StringUtils.isEmpty(resultJson)) {
-                DingRobotUtils.send(webhookToken, "构建订单失败，请检查passengerName, passportNo, sex, contactMobile, contactName。重点检查passengerName和passportNo是否对应", true);
-                logger.warn("构建订单失败，请检查passengerName, passportNo, sex, contactMobile, contactName。重点检查passengerName和passportNo是否对应。或者是网络问题");
-                break;
-            }
-            //{"message":"","code":"00000","data":{"orderNo":"T201804071229380152344","orderDate":1523075378841}}
-            JsonNode resultNode = JsonUtils.jsonToJsonNode(resultJson);
-            JsonNode codeNode = resultNode.get("code");
-
-            if (codeNode.asText().equals("00005")) {
-                logger.warn("存在未支付订单，请先去12306取消订单");
-                System.exit(0);
-            }
-
-            if (codeNode.asText().equals("00000")) {
-                JsonNode orderDataNode = resultNode.get("data");
-                JsonNode orderNoNode = orderDataNode.get("orderNo");
-                JsonNode orderDateNode = orderDataNode.get("orderDate");
-
-                //http://api.12306.com/v1/train/order-detail/T201804071229380152344?access_token=82489e76-09fd-407c-bb26-31a660b00014
-                String occupyUrl = "http://api.12306.com/v1/train/order-detail/" + orderNoNode.asText() + "?access_token=" + accessToken;
-                while (true) {
-                    String occupyJson = HttpClientUtils.doGet(occupyUrl, null, headers);
-                    JsonNode occupyJsonNode = JsonUtils.jsonToJsonNode(occupyJson);
-                    JsonNode occupyDataNode = occupyJsonNode.get("data");
-                    JsonNode statusTextNode = occupyDataNode.get("statusText");
-                    if (!"占座中".equals(statusTextNode.asText())) {
-                        DingRobotUtils.send(webhookToken, deptTimeNode.asText() + "\r" + trainCodeNode.asText() + "\r 票数为:" + seatNum.asText() + " \r " + seatNameNode.asText() + " \r状态为:" + statusTextNode.asText(), true);
-                        logger.info(deptTimeNode.asText() + " " + trainCodeNode.asText() + " 票数为:" + seatNum.asText() + "  " + seatNameNode.asText() + " 状态为:" + statusTextNode.asText());
-                        if (statusTextNode.asText().contains("占座成功")) {
-                            System.exit(0);
-                            return;
-                        }
-                        break;
-                    }
-                }
-            }
-
-
+            trainInfoNodes.add(infoNode);
         }
+        if (trainInfoNodes.size() > 0) {
+            return trainInfoNodes;
+        }
+        return null;
+    }
 
-
+    private JsonNode getClassSeatNode(JsonNode infoNode, String seatName) {
+        JsonNode seatList = infoNode.get("seatList");
+        if (seatList == null) {
+            return null;
+        }
+        JsonNode seatNameNode;
+        for (JsonNode seatNode : seatList) {
+            seatNameNode = seatNode.get("seatName");
+            if (seatNameNode != null && seatName.equals(seatNameNode.asText().trim())) {
+                return seatNode;
+            }
+        }
+        return null;
     }
 
     private boolean isTimeRange(String deptTime, String timeRange) {
@@ -264,5 +392,57 @@ public class ReaperServiceImpl implements ReaperService {
             return true;
         }
         return false;
+    }
+
+    public JsonNode getTrainInfosNode(String fromStation, String toStation, String deptDate, String justGD, Map<String, String> headers, String webhookToken) {
+        //从火车票查询页的url转换为trainInfo接口的url
+
+        if (trainInfoUrl == null) {
+            String fromStationCode = stationService.findCodeByCityName(fromStation);
+            String toStationCode = stationService.findCodeByCityName(toStation);
+            try {
+                //trainInfo接口的url 为:http://api.12306.com/v1/train/trainInfos?arrStationCode=SHH&deptDate=2018-04-08&deptStationCode=SZQ&findGD=false
+                trainInfoUrl = "http://api.12306.com/v1/train/trainInfos?arrStationCode=" + toStationCode + "&deptDate=" + deptDate + "&deptStationCode=" + fromStationCode + "&findGD=" + justGD.toLowerCase();
+
+            } catch (Exception e) {
+                logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确", e);
+                return null;
+            }
+        }
+
+        if (StringUtils.isEmpty(trainInfoUrl)) {
+            logger.error("火车票查询页的url转换trainInfo接口的url出错，请看填写url是否正确");
+            return null;
+        }
+
+        String json = HttpClientUtils.doGet(trainInfoUrl, null, headers);
+
+        if (StringUtils.isEmpty(json)) {
+            DingRobotUtils.send(webhookToken, "返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl, false);
+            logger.error("返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl);
+            return null;
+        }
+
+        JsonNode jsonNode = JsonUtils.jsonToJsonNode(json);
+        if (jsonNode == null) {
+            DingRobotUtils.send(webhookToken, "解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
+            logger.error("解析车次信息json数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
+            return null;
+        }
+
+        JsonNode dataNode = jsonNode.get("data");
+        if (dataNode == null) {
+            DingRobotUtils.send(webhookToken, "解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
+            logger.error("解析车次信息json内的data数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
+            return null;
+        }
+
+        JsonNode trainInfosNode = dataNode.get("trainInfos");
+        if (trainInfosNode == null) {
+            DingRobotUtils.send(webhookToken, "解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json, true);
+            logger.error("解析车次信息json内data下面的trainInfos数据为空，请看返回json是否有误，或者IP是否被封, url:" + trainInfoUrl + " ,json:" + json);
+            return null;
+        }
+        return trainInfosNode;
     }
 }

@@ -9,4 +9,6 @@ package com.yeauty.service;
 public interface ReaperService {
 
     void monitor();
+
+    void noBrainPlaceOrder();
 }
