@@ -12,9 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -61,6 +63,7 @@ public class ReaperServiceImpl implements ReaperService {
     String contactName;
     @Value("${time-range:null}")
     String timeRange;
+    boolean transcode = false;
 
     String trainInfoUrl;
 
@@ -76,6 +79,19 @@ public class ReaperServiceImpl implements ReaperService {
 
     @Override
     public void monitor() {
+        //由于springboot读取文件默认是以ios-8859-1，所以配置文件中写中文，读取时需要转会utf-8
+        if (!transcode){
+            try {
+                fromStation = new String(fromStation.getBytes("iso-8859-1"),"UTF-8");
+                toStation = new String(toStation.getBytes("iso-8859-1"),"UTF-8");
+                seatName = new String(seatName.getBytes("iso-8859-1"),"UTF-8");
+                passengerName = new String(passengerName.getBytes("iso-8859-1"),"UTF-8");
+                contactName = new String(contactName.getBytes("iso-8859-1"),"UTF-8");
+                transcode=true;
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+        }
         try {
             logger.info("开始进行第 " + counter.getAndIncrement() + " 次检测");
 

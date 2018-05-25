@@ -3,6 +3,7 @@ package com.yeauty.service.impl;
 import com.yeauty.service.LoginService;
 import com.yeauty.util.HttpClientUtils;
 import com.yeauty.util.JsonUtils;
+import com.yeauty.util.MD5Utils;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -30,7 +31,7 @@ public class LoginServiceImpl implements LoginService {
         headers.put("Referer","http://www.12306.com/");
         headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
 
-        String json = HttpClientUtils.doPostJson("http://api.12306.com/oauth/token?client_id=client&client_secret=secret&grant_type=password&password=cdba10beeb0c6da6404ffbfaed3c0927&username=13726258276", "{}", headers);
+        String json = HttpClientUtils.doPostJson("http://api.12306.com/oauth/token?client_id=client&client_secret=secret&grant_type=password&password="+ MD5Utils.md5(password)+"&username="+username, "{}", headers);
         return JsonUtils.jsonToMap(json,String.class,String.class);
     }
 }
