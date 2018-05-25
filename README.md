@@ -25,7 +25,7 @@
 1. IDE启动
 - 导入项目并在配置文件中填入信息
 
-![](https://i.imgur.com/48xetIG.png)
+![](https://i.imgur.com/AJrvglz.png)
 - 启动项目
 
 ![](https://i.imgur.com/qQqTDSd.png)
