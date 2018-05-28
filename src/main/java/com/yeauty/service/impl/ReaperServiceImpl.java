@@ -16,7 +16,6 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -28,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @Description:TODO
  * @date 2018/4/7 0:13
  */
-@PropertySource(value = "classpath:train.properties",encoding = "UTF-8")
+@PropertySource(value = "classpath:train.properties", encoding = "UTF-8")
 @Service
 public class ReaperServiceImpl implements ReaperService {
 
@@ -97,19 +96,24 @@ public class ReaperServiceImpl implements ReaperService {
             //获取列车信息
             JsonNode trainInfosNode = getTrainInfosNode(fromStation, toStation, deptDate, justGD, headers, webhookToken);
             if (trainInfosNode == null) {
-                logger.error("获取列车信息失败");
+                logger.error("获取列车信息失败,请查看参数 from-station 、 to-station 、 dept-date 是否有误。或 www.12306.com是否封了IP");
+                DingRobotUtils.send(webhookToken, "获取列车信息失败,请查看参数 from-station 、 to-station 、 dept-date 是否有误。或 www.12306.com是否封了IP", true);
                 return;
             }
 
             //获取适合的列车信息（符合配置文件中配置的）
             List<JsonNode> trainNodes = getApplicableTrainInfoNodes(trainInfosNode, seatName, timeRange, webhookToken);
             if (trainNodes == null) {
-                logger.error("没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息");
-                DingRobotUtils.send(webhookToken, "没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息", true);
+                logger.error("没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息。目标座位为:" + seatName);
+                DingRobotUtils.send(webhookToken, "没有符合要求的班次,请检查 " + timeRange + " 是否有符合要求的列车信息。目标座位为:" + seatName, true);
                 return;
             }
 
             for (JsonNode infoNode : trainNodes) {
+
+                if (!isSellTime(infoNode)) {
+                    continue;
+                }
 
                 JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
                 JsonNode seatNum = classSeatNode.get("seatNum");
@@ -139,6 +143,22 @@ public class ReaperServiceImpl implements ReaperService {
         } catch (Exception e) {
             logger.error("第 " + counter.get() + " 次检测报错", e);
         }
+    }
+
+    private boolean isSellTime(JsonNode infoNode) {
+        JsonNode reasonNode = infoNode.get("reason");
+        if (reasonNode != null && "不在服务时间".equals(reasonNode.asText())) {
+            //当23:00到6:00时是不能买票的，缓一缓
+            JsonNode trainCodeNode = infoNode.get("trainCode");
+            logger.info(trainCodeNode.asText() + "\t 不在服务期间内 （23:00到6:00时是不能买票的），sleep 100ms  ，跳过");
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -173,6 +193,10 @@ public class ReaperServiceImpl implements ReaperService {
 
             while (true) {
                 for (JsonNode infoNode : trainNodes) {
+
+                    if (!isSellTime(infoNode)) {
+                        continue;
+                    }
 
                     JsonNode classSeatNode = getClassSeatNode(infoNode, seatName);
                     JsonNode seatNum = classSeatNode.get("seatNum");
@@ -306,17 +330,7 @@ public class ReaperServiceImpl implements ReaperService {
                 logger.error("解析车次trainCode为空，请注意,info:" + infoNode.toString());
                 continue;
             }
-            //当23:00到6:00时是不能买票的，缓一缓
-            JsonNode reasonNode = infoNode.get("reason");
-            if (reasonNode != null && "不在服务时间".equals(reasonNode.asText())) {
-                logger.info(trainCodeNode.asText() + "\t 不在服务期间内 （23:00到6:00时是不能买票的），sleep 100ms  ，跳过");
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                continue;
-            }
+
             JsonNode deptTimeNode = infoNode.get("deptTime");
             if (deptTimeNode == null) {
                 DingRobotUtils.send(webhookToken, "解析车次deptTime为空，请注意,info:" + deptTimeNode.toString(), true);
