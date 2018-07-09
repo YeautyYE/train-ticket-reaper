@@ -10,5 +10,5 @@ import java.util.Map;
  */
 public interface LoginService {
 
-    Map<String,String> login(String username, String password);
+    Map<String,String> login(String account, String password);
 }

@@ -47,8 +47,8 @@ public class ReaperServiceImpl implements ReaperService {
     String deptDate;
     @Value("${seat-name}")
     String seatName;
-    @Value("${username}")
-    String username;
+    @Value("${account}")
+    String account;
     @Value("${password}")
     String password;
     @Value("${passenger-name}")
@@ -123,7 +123,7 @@ public class ReaperServiceImpl implements ReaperService {
                 }
 
                 //通过登陆获取accessToken
-                String accessToken = getAccessTokenByLogin(username, password, webhookToken);
+                String accessToken = getAccessTokenByLogin(account, password, webhookToken);
                 if (StringUtils.isEmpty(accessToken)) {
                     DingRobotUtils.send(webhookToken, "登陆失败，请检查username和password", true);
                     logger.error("登陆失败，请检查username和password");
@@ -202,7 +202,7 @@ public class ReaperServiceImpl implements ReaperService {
                     JsonNode seatNum = classSeatNode.get("seatNum");
 
                     //通过登陆获取accessToken
-                    String accessToken = getAccessTokenByLogin(username, password, webhookToken);
+                    String accessToken = getAccessTokenByLogin(account, password, webhookToken);
                     if (StringUtils.isEmpty(accessToken)) {
                         DingRobotUtils.send(webhookToken, "登陆失败，请检查username和password", true);
                         logger.error("登陆失败，请检查username和password");
@@ -309,8 +309,8 @@ public class ReaperServiceImpl implements ReaperService {
 
     }
 
-    private String getAccessTokenByLogin(String username, String password, String webhookToken) {
-        Map<String, String> loginInfo = loginService.login(username, password);
+    private String getAccessTokenByLogin(String account, String password, String webhookToken) {
+        Map<String, String> loginInfo = loginService.login(account, password);
         if (loginInfo == null) {
             return null;
         }

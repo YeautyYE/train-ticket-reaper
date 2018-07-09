@@ -5,6 +5,7 @@ import com.yeauty.util.HttpClientUtils;
 import com.yeauty.util.JsonUtils;
 import com.yeauty.util.MD5Utils;
 import org.springframework.stereotype.Service;
+import sun.java2d.pipe.SpanIterator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +20,7 @@ import java.util.Random;
 @Service
 public class LoginServiceImpl implements LoginService {
     @Override
-    public Map<String, String> login(String username, String password) {
+    public Map<String, String> login(String account, String password) {
         Map headers = new HashMap<>();
         headers.put("Accept","application/json, text/plain");
         headers.put("Accept-Encoding","gzip, deflate");
@@ -31,7 +32,7 @@ public class LoginServiceImpl implements LoginService {
         headers.put("Referer","http://www.12306.com/");
         headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
 
-        String json = HttpClientUtils.doPostJson("http://api.12306.com/oauth/token?client_id=client&client_secret=secret&grant_type=password&password="+ MD5Utils.md5(password)+"&username="+username, "{}", headers);
+        String json = HttpClientUtils.doPostJson("http://api.12306.com/oauth/token?client_id=client&client_secret=secret&grant_type=password&password="+ MD5Utils.md5(password)+"&username="+account, "{}", headers);
         return JsonUtils.jsonToMap(json,String.class,String.class);
     }
 }
