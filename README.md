@@ -13,10 +13,23 @@
 
 ---
 
+### Q&A
+- Q：这个项目是抢<kbd>www.12306.cn</kbd>(中国铁路客户服务中心)的票吗？
+- A：不是。这个是抢<kbd>12306.com</kbd>(点点出行)的票。
+
+- Q：为什么要抢点点出行的票，而不是中国铁路客户服务中心？
+- A：<kbd>www.12306.cn</kbd>(中国铁路客户服务中心)里面抛开登陆验证不说，之后的各种数据获取足以让人头痛。要做成纯HTTP请求难度非常大，所以目前大部分都是以Selenium或Chrome脚本的形式在<kbd>www.12306.cn</kbd>进行抢票。
+
+- Q：<kbd>12306.com</kbd>(点点出行)是个什么网站，会不会有风险？
+- A：这个网站其实就和携程、去哪儿网一样是第三方票务代售，他也是在国内备案过的。而使用<kbd>12306.com</kbd>估计他只是想从<kbd>www.12306.cn</kbd>偷偷的获取一部分流量。
+
+- Q：在这里抢票是否会产生除了票价外其它费用？
+- A：不会，价格和<kbd>www.12306.cn</kbd>一样的。
+
 ## 项目介绍
 ![](https://img.shields.io/badge/build-passing-brightgreen.svg) ![](https://img.shields.io/badge/downloads-190KB-brightgreen.svg) ![](https://img.shields.io/badge/jdk-1.8-blue.svg) ![](https://img.shields.io/badge/springboot-2.0.1-blue.svg)   ![](https://img.shields.io/badge/maven-3.3.9-blue.svg)  ![](https://img.shields.io/badge/IDEA-2017.2.3-blue.svg)
 - `train-ticket-reaper` 的目标是以简单的使用方法、和高效的抢票让小伙伴们安心的抢到回家的票
-- 抢票的原理是模拟http请求调用<kbd>12306.com</kbd>API进行查询、下单、确认等（没有付款步奏，保证小伙伴钱包的安全，抢到后自行登陆<kbd>http://12306.com/</kbd>付款即可）。
+- 抢票的原理是模拟http请求调用<kbd>12306.com</kbd>（非<kbd>www.12306.cn</kbd>）API进行查询、下单、确认等（没有付款步奏，保证小伙伴钱包的安全，抢到后自行登陆<kbd>http://12306.com/</kbd>付款即可）。
 - 没有复杂的环境配置和依赖，只需要把该填的参数填上，run一下就可以一直放着等他抢到票为止
 - 提供4种不同的抢票模式（极速模式、丧心病狂模式、为了抢票不要命模式、无脑下单模式），后两种非万不得已，不建议使用
 
