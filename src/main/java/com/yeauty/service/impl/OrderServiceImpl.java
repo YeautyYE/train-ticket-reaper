@@ -3,6 +3,8 @@ package com.yeauty.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.yeauty.service.OrderService;
 import com.yeauty.util.HttpClientUtils;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -16,7 +18,12 @@ import java.util.Random;
  * @date 2018/4/7 11:53
  */
 @Service
+@PropertySource(value = "classpath:train.properties", encoding = "UTF-8")
 public class OrderServiceImpl implements OrderService {
+
+    @Value("${seat-name}")
+    String seatName;
+
     @Override
     public String buildOrder(String accessToken, String passengerName, String passportNo, String sex, String contactMobile, String contactName, JsonNode trainInfoNode) {
         String url = "http://api.12306.com/v1/train/order?access_token=" + accessToken;
@@ -32,7 +39,7 @@ public class OrderServiceImpl implements OrderService {
         headers.put("Referer", "http://www.12306.com/");
         headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
 
-        //{"deptStationCode":"SNQ","arrStationCode":"IOQ","trainCode":"G6013","deptDate":"2018-04-10","seatPrice":"179.0","runTime":"01:39","deptTime":"09:17","passengers":[{"passengerMobile":null,"passengerName":"叶唐","passportTypeId":"1","passportNo":"440203199303296711","trainTicketType":"1","policyProductNo":"","passengerId":"","birthday":"","sex":"M","isPassengerSave":true,"insurancePrice":0}],"contactsInfo":{"contactEmail":"","contactMobile":"13726258276","contactName":"叶唐","contactPassportNo":"","contactPassportType":"1"},"usingTrainAccount":false,"trainZWCode":"O","source":"P2"}
+        //{"deptStationCode":"SNQ","arrStationCode":"IOQ","trainCode":"G6013","deptDate":"2018-04-10","seatPrice":"179.0","runTime":"01:39","deptTime":"09:17","passengers":[{"passengerMobile":null,"passengerName":"张三","passportTypeId":"1","passportNo":"440203198903291234","trainTicketType":"1","policyProductNo":"","passengerId":"","birthday":"","sex":"M","isPassengerSave":true,"insurancePrice":0}],"contactsInfo":{"contactEmail":"","contactMobile":"13726248277","contactName":"李四","contactPassportNo":"","contactPassportType":"1"},"usingTrainAccount":false,"trainZWCode":"O","source":"P2"}
         JsonNode trainCode = trainInfoNode.get("trainCode");
 
         JsonNode trainStatus = trainInfoNode.get("trainStatus");
@@ -60,7 +67,7 @@ public class OrderServiceImpl implements OrderService {
         JsonNode seatNameNode = null;
         for (JsonNode seatNode : seatList) {
             seatNameNode = seatNode.get("seatName");
-            if (seatNameNode != null && "二等座".equals(seatNameNode.asText().trim())) {
+            if (seatNameNode != null && seatName.equals(seatNameNode.asText().trim())) {
                 classSeatNode = seatNode;
                 break;
             }

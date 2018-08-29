@@ -63,11 +63,11 @@ public abstract class HttpClientUtils {
         // 创建Http请求配置参数
         RequestConfig.Builder requestBuilder = RequestConfig.custom()
                 // 获取连接超时时间
-                .setConnectionRequestTimeout(2000)
+                .setConnectionRequestTimeout(10000)
                 // 请求超时时间
-                .setConnectTimeout(2000)
+                .setConnectTimeout(10000)
                 // 响应超时时间
-                .setSocketTimeout(2000);
+                .setSocketTimeout(10000);
         HttpHost httpHost = null;
         if (proxyHost != null && proxyPort != null) {
             httpHost = new HttpHost(proxyHost, proxyPort);
