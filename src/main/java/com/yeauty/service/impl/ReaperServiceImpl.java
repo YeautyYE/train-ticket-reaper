@@ -91,6 +91,9 @@ public class ReaperServiceImpl implements ReaperService {
             headers.put("Host", "api.12306.com");
             headers.put("Origin", "http://www.12306.com");
             headers.put("Referer", "http://www.12306.com/");
+            String maskIp = ((int)(Math.random()*200)+50)+"."+((int)(Math.random()*200)+50)+"."+((int)(Math.random()*200)+50)+"."+((int)(Math.random()*200)+50);
+            headers.put("X-Real-IP", maskIp);
+            headers.put("X-Forwarded-For", maskIp);
             headers.put("User-Agent", HttpClientUtils.pcUserAgentArray[new Random().nextInt(HttpClientUtils.pcUserAgentArray.length)]);
 
             //获取列车信息
@@ -437,6 +440,11 @@ public class ReaperServiceImpl implements ReaperService {
         if (StringUtils.isEmpty(json)) {
             DingRobotUtils.send(webhookToken, "返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl, false);
             logger.error("返回车次信息json数据为空，请看是否被封ip,url:" + trainInfoUrl);
+            return null;
+        }
+
+        if ("{\"message\":\"请求过于频繁\",\"code\":\"00001\",\"data\":\"\"}".equals(json)){
+            logger.warn("请求过于频繁");
             return null;
         }
 
